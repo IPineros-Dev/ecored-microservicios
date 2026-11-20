@@ -15,6 +15,9 @@ const CompaniesPage = lazy(() =>
 const MaterialsPage = lazy(() =>
   import("../features/materials/pages/MaterialsPage.jsx"),
 );
+const RequestsPage = lazy(() =>
+  import("../features/requests/pages/RequestsPage.jsx"),
+);
 
 /**
  * Decide el destino inicial una vez Firebase termina de restaurar la sesión.
@@ -52,6 +55,7 @@ export default function AppRouter() {
             />
             <Route path="/materials" element={<MaterialsPage />} />
           </Route>
+          <Route path="/requests" element={<RequestsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

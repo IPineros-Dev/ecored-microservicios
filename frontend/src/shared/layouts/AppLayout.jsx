@@ -46,6 +46,8 @@ export default function AppLayout() {
               </NavLink>
               <NavLink className={navClassName} to="/materials">
                 Materiales
+              </NavLink><NavLink className={navClassName} to="/requests">
+                Solicitudes
               </NavLink>
             </div>
 

@@ -24,6 +24,7 @@ const validateFirebaseToken = createFirebaseTokenValidator({
 const routes = [
   { prefix: "/api/companies", origin: process.env.COMPANIES_URL || "http://127.0.0.1:8001" },
   { prefix: "/api/materials", origin: process.env.MATERIALS_URL || "http://127.0.0.1:8002" },
+  { prefix: "/api/requests", origin: process.env.REQUESTS_URL || "http://127.0.0.1:8003" },
 ];
 
 function corsHeaders(req) {

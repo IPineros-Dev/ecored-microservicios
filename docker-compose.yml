@@ -1,0 +1,115 @@
+services:
+  requests-db:
+    image: mongo:7
+    container_name: ecored-requests-db
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${REQUESTS_MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${REQUESTS_MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${REQUESTS_MONGO_DB_NAME}
+    volumes:
+      - requests_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ecored-net
+
+  requests-service:
+    image: arancho/ecored-requests:1.0
+    container_name: ecored-requests-service
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8003
+      MONGO_URI: mongodb://${REQUESTS_MONGO_USER}:${REQUESTS_MONGO_PASSWORD}@requests-db:27017/${REQUESTS_MONGO_DB_NAME}?authSource=admin
+      MONGO_DB_NAME: ${REQUESTS_MONGO_DB_NAME}
+    depends_on:
+      requests-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ecored-net
+
+  companies-service:
+    image: adanbeltran/ecored-companies:1.0
+    container_name: ecored-companies-service
+    restart: unless-stopped
+    environment:
+      PORT: 8001
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG}
+      DJANGO_ALLOWED_HOSTS: companies-service,localhost,127.0.0.1
+      CORS_ALLOWED_ORIGINS: ${CORS_ORIGINS}
+      MONGODB_URI: ${COMPANIES_MONGODB_URI}
+      MONGODB_DB_NAME: ${COMPANIES_MONGODB_DB_NAME}
+    networks:
+      - ecored-net
+
+  materials-service:
+    image: adanbeltran/ecored-materials:1.0
+    container_name: ecored-materials-service
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8002
+      ORACLE_USER: ${ORACLE_USER}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      ORACLE_CONNECT_STRING: ${ORACLE_CONNECT_STRING}
+      COMPANIES_SERVICE_URL: http://companies-service:8001/api
+    networks:
+      - ecored-net
+
+  local-gateway:
+    build: ./local-gateway
+    image: arancho/ecored-local-gateway:1.0
+    container_name: ecored-local-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_JWKS_URL: ${FIREBASE_JWKS_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      COMPANIES_URL: http://companies-service:8001
+      MATERIALS_URL: http://materials-service:8002
+      REQUESTS_URL: http://requests-service:8003
+    depends_on:
+      - companies-service
+      - materials-service
+      - requests-service
+    networks:
+      - ecored-net
+
+  frontend:
+    build: ./frontend
+    image: arancho/ecored-frontend:1.0
+    container_name: ecored-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    depends_on:
+      - local-gateway
+    networks:
+      - ecored-net
+
+volumes:
+  requests_mongo_data:
+
+networks:
+  ecored-net:
+    driver: bridge
